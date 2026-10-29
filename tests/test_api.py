@@ -25,9 +25,11 @@ def test_quote_rejects_unconfigured_routing_without_inventing_a_quote(client):
 
 
 def test_mobile_entry_screen_is_served(client):
-    response = client.get("/")
-    assert response.status_code == 200
-    assert b"Chaufly" in response.data
+    for path in ("/", "/static/index.html"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.content_type.startswith("text/html")
+        assert b"Chaufly" in response.data
 
 
 def test_match_requires_user_permitted_or_selected_coordinate(client):
