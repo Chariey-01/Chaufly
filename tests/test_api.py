@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models import Driver
+from app.models import Driver, NotificationAttempt
 
 
 def make_driver():
@@ -24,12 +24,30 @@ def test_quote_rejects_unconfigured_routing_without_inventing_a_quote(client):
     assert response.json["error"]["code"] == "ROUTING_UNAVAILABLE"
 
 
+def test_quote_rejects_provider_failure(client, app, monkeypatch):
+    with app.app_context():
+        app.config.update(ROUTING_PROVIDER="openrouteservice", ORS_API_KEY="test-key")
+    monkeypatch.setattr("app.routes.routing.get_route", lambda *_args: (_ for _ in ()).throw(__import__("app.services.routing", fromlist=["RoutingProviderError"]).RoutingProviderError("Routing provider directions failed.")))
+    response = client.post("/api/quote", json={"pickup_latitude": -1.286, "pickup_longitude": 36.817,
+                                                 "dropoff_latitude": -1.29, "dropoff_longitude": 36.821,
+                                                 "transmission": "AUTOMATIC"})
+    assert response.status_code == 502
+    assert response.json["error"]["code"] == "ROUTING_PROVIDER_ERROR"
+
+
 def test_mobile_entry_screen_is_served(client):
     for path in ("/", "/static/index.html"):
         response = client.get(path)
         assert response.status_code == 200
         assert response.content_type.startswith("text/html")
         assert b"Chaufly" in response.data
+
+
+def test_voice_callback_returns_voice_xml(client):
+    response = client.post("/api/webhooks/voice/calls", data={"sessionId": "test-session"})
+    assert response.status_code == 200
+    assert response.content_type.startswith("application/xml")
+    assert b"<Response>" in response.data
 
 
 def test_match_requires_user_permitted_or_selected_coordinate(client):
@@ -47,6 +65,10 @@ def test_start_persists_trip_and_reports_unconfigured_sms(app, client):
     notification = response.json["notifications"][0]
     assert notification["status"] == "NOT_CONFIGURED"
     assert notification["attempted"] is False
+    with app.app_context():
+        record = NotificationAttempt.query.one()
+        assert record.channel == "sms"
+        assert record.status == "NOT_CONFIGURED"
 
 
 def test_invalid_transition_is_rejected(app, client):
@@ -78,3 +100,5 @@ def test_sos_persists_incident_when_notifications_are_unconfigured(app, client):
     attempts = response.json["incident"]["notification_attempts"]
     assert len(attempts) == 2
     assert all(item["status"] == "NOT_CONFIGURED" for item in attempts)
+    with app.app_context():
+        assert NotificationAttempt.query.count() == 3

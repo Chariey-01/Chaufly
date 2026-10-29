@@ -1,11 +1,11 @@
 import math
 from datetime import datetime, timezone
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, Response
 from sqlalchemy import select
 
 from .extensions import db
-from .models import Driver, Rating, SOSIncident, Trip
+from .models import Driver, NotificationAttempt, Rating, SOSIncident, Trip
 from .services import notifications, routing
 from .services.trips import can_drive, transition
 from .validation import ValidationError, coordinates, payload, phone, required, transmission
@@ -36,15 +36,40 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@api.post("/webhooks/voice/calls")
+def voice_call_webhook():
+    """VoiceXML callback configured in Africa's Talking for the Chaufly Voice number."""
+    return Response(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Say>"
+        "Chaufly safety alert. Please contact the Chaufly operations team."
+        "</Say></Response>",
+        content_type="application/xml",
+    )
+
+
 @api.post("/quote")
 def quote():
     data = payload(request)
-    required(data, ["pickup_address", "dropoff_address", "transmission"])
+    required(data, ["transmission"])
     transmission(data["transmission"])
+    pickup_coordinates = coordinates(data, "pickup_")
+    dropoff_coordinates = coordinates(data, "dropoff_")
+    pickup_address = data.get("pickup_address", "")
+    dropoff_address = data.get("dropoff_address", "")
+    pickup = ({"latitude": pickup_coordinates[0], "longitude": pickup_coordinates[1]} if pickup_coordinates
+              else {"address": pickup_address.strip() if isinstance(pickup_address, str) else ""})
+    dropoff = ({"latitude": dropoff_coordinates[0], "longitude": dropoff_coordinates[1]} if dropoff_coordinates
+               else {"address": dropoff_address.strip() if isinstance(dropoff_address, str) else ""})
+    if not pickup.get("address") and "latitude" not in pickup:
+        raise ValidationError("Validation failed.", {"pickup_address": "Provide pickup coordinates or an address."})
+    if not dropoff.get("address") and "latitude" not in dropoff:
+        raise ValidationError("Validation failed.", {"dropoff_address": "Provide drop-off coordinates or an address."})
     try:
-        route = routing.get_route(data["pickup_address"], data["dropoff_address"])
+        route = routing.get_route(pickup, dropoff)
     except routing.RoutingUnavailable as exc:
         return error("ROUTING_UNAVAILABLE", str(exc), 503)
+    except routing.RoutingProviderError as exc:
+        return error("ROUTING_PROVIDER_ERROR", str(exc), 502)
     return jsonify({"quote": routing.quote_from_route(route)})
 
 
@@ -107,6 +132,22 @@ def _actual_duration_minutes(trip):
     return max(0, math.ceil(seconds / 60))
 
 
+def _record_notification(trip, attempt, incident=None):
+    record = NotificationAttempt(
+        trip_id=trip.id,
+        incident_id=incident.id if incident else None,
+        channel=attempt.channel,
+        attempted=attempt.attempted,
+        status=attempt.status,
+        provider_status=attempt.provider_status,
+        provider_message_id=attempt.provider_message_id,
+        provider_response=attempt.provider_response,
+        detail=attempt.detail,
+    )
+    db.session.add(record)
+    return attempt.serialize()
+
+
 @api.post("/trips/start")
 def start_trip():
     data = payload(request)
@@ -127,7 +168,9 @@ def start_trip():
     db.session.commit()  # Persist before notification attempts.
     message = f"Chaufly trip {trip.id}: {trip.customer_name} is travelling in {trip.car_make_model} ({trip.registration_plate}) with {driver.full_name} to {trip.dropoff_address}."
     sms = notifications.send_sms([trip.emergency_contact_phone], message)
-    return jsonify({"trip": _serialize_trip(trip), "notifications": [sms.serialize()]}), 201
+    notification_result = _record_notification(trip, sms)
+    db.session.commit()
+    return jsonify({"trip": _serialize_trip(trip), "notifications": [notification_result]}), 201
 
 
 def _trip_or_error(trip_id):
@@ -177,7 +220,9 @@ def sos(trip_id):
     db.session.commit()
     recipients = [trip.emergency_contact_phone] + [p.strip() for p in current_app.config.get("OPERATIONS_ALERT_RECIPIENTS", "").split(",") if p.strip()]
     message = f"Chaufly SOS {incident.id} for trip {trip.id}. Reason: {incident.trigger_reason}."
-    attempts = [notifications.send_sms(recipients, message).serialize(), notifications.queue_voice_alert(trip.emergency_contact_phone, message).serialize()]
+    sms = notifications.send_sms(recipients, message)
+    voice = notifications.queue_voice_alert(trip.emergency_contact_phone, message)
+    attempts = [_record_notification(trip, sms, incident), _record_notification(trip, voice, incident)]
     incident.notification_attempts = attempts
     incident.dispatch_status = "ALERTS_ATTEMPTED"
     db.session.commit()

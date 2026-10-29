@@ -46,6 +46,7 @@ class Trip(db.Model):
     completed_at = db.Column(db.DateTime(timezone=True))
     driver = db.relationship("Driver")
     incidents = db.relationship("SOSIncident", backref="trip", lazy=True)
+    notification_records = db.relationship("NotificationAttempt", backref="trip", lazy=True)
     rating_record = db.relationship("Rating", backref="trip", uselist=False)
 
 
@@ -58,6 +59,21 @@ class SOSIncident(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     notification_attempts = db.Column(db.JSON, nullable=False, default=list)
     dispatch_status = db.Column(db.String(32), nullable=False, default="PENDING")
+    notification_records = db.relationship("NotificationAttempt", backref="incident", lazy=True)
+
+
+class NotificationAttempt(db.Model):
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_id = db.Column(db.String(36), db.ForeignKey("trip.id"), nullable=False)
+    incident_id = db.Column(db.String(36), db.ForeignKey("sos_incident.id"))
+    channel = db.Column(db.String(16), nullable=False)
+    attempted = db.Column(db.Boolean, nullable=False)
+    status = db.Column(db.String(64), nullable=False)
+    provider_status = db.Column(db.String(128))
+    provider_message_id = db.Column(db.String(128))
+    provider_response = db.Column(db.JSON)
+    detail = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
 
 class Rating(db.Model):
