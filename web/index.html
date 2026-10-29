@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d2e">
+<title>iFinder — a certified driver for your own car</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="logo">
+      <svg class="logo-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="10.5" stroke="#f2a50c" stroke-width="2"/>
+        <path d="M7 16.5 10 9l2.5 5 2-3 2.5 5.5" stroke="#fff" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      iFinder
+    </span>
+    <span class="topbar-meta" id="topbar-meta">Nairobi</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="stepper" aria-label="Booking progress">
+    <span class="stepper-dot" data-step="1"></span>
+    <span class="stepper-dot" data-step="2"></span>
+    <span class="stepper-dot" data-step="3"></span>
+    <span class="stepper-dot" data-step="4"></span>
+  </nav>
+
+  <!-- ================================================== 1. TRIP DETAILS -->
+  <section id="screen-plan" class="screen">
+    <div class="card">
+      <h1 class="card-title">Where are you taking the car?</h1>
+      <p class="card-sub">A DCI-vetted driver meets you, drives your own car, and hands back the keys.</p>
+
+      <div class="field">
+        <label for="pickup">Pickup</label>
+        <div class="field-row">
+          <div class="field" style="margin:0">
+            <input id="pickup" type="text" placeholder="e.g. Alchemist, Westlands"
+                   autocomplete="off" value="Alchemist, Westlands">
+          </div>
+          <button class="btn btn-ghost btn-sm" id="btn-geo" type="button" style="flex:0 0 auto">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Locate
+          </button>
+        </div>
+        <p class="field-hint" id="geo-hint">Tap Locate so we can find the driver nearest to you.</p>
+      </div>
+
+      <div class="field">
+        <label for="dropoff">Destination</label>
+        <input id="dropoff" type="text" placeholder="e.g. Karen, Hardy" autocomplete="off"
+               value="Karen, Hardy">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="distance">Distance (km)</label>
+          <input id="distance" type="number" inputmode="decimal" min="0.5" max="500"
+                 step="0.5" value="8.5">
+        </div>
+        <div class="field">
+          <label for="plate">Your plate</label>
+          <input id="plate" type="text" placeholder="KDA 123A" maxlength="12"
+                 autocomplete="off" value="KDA 123A"
+                 style="text-transform:uppercase">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="carmodel">Car</label>
+        <input id="carmodel" type="text" placeholder="Toyota Axio" autocomplete="off"
+               value="Toyota Axio 2017">
+      </div>
+
+      <div class="field" style="margin-bottom:6px">
+        <span class="field-label">Your car's transmission</span>
+        <div class="pick">
+          <label class="pick-opt">
+            <input type="radio" name="transmission" value="AUTOMATIC" checked>
+            <span class="pick-body">
+              <span class="pick-name">Automatic</span>
+              <span class="pick-desc">Most certified drivers qualify</span>
+            </span>
+          </label>
+          <label class="pick-opt">
+            <input type="radio" name="transmission" value="MANUAL">
+            <span class="pick-body">
+              <span class="pick-name">Manual</span>
+              <span class="pick-desc">Needs a manual-certified driver</span>
+            </span>
+          </label>
+        </div>
+        <p class="field-hint">Get this wrong and we'll send a driver who can't move your car.</p>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btn-quote" type="button">Get fare estimate</button>
+  </section>
+
+  <!-- ================================================== 2. QUOTE + MATCH -->
+  <section id="screen-quote" class="screen hidden">
+    <div class="card" id="quote-card">
+      <p class="section-label">Estimated fare</p>
+      <div class="spread" style="align-items:flex-end">
+        <div class="money"><span id="q-fare">—</span> <small>KES</small></div>
+        <div style="text-align:right">
+          <div class="muted mono" id="q-distance">— km</div>
+          <div class="muted" style="font-size:13px" id="q-duration">— min</div>
+        </div>
+      </div>
+      <dl class="mt" id="q-breakdown"></dl>
+      <p class="field-hint" id="q-expiry"></p>
+    </div>
+
+    <div class="card hidden" id="driver-card">
+      <p class="section-label">Your driver</p>
+      <div class="driver">
+        <div class="avatar avatar-fallback" id="d-avatar">?<img class="avatar hidden" id="d-photo" alt=""></div>
+        <div style="flex:1;min-width:0">
+          <div class="driver-name" id="d-name">—</div>
+          <div class="driver-meta">
+            <span class="stars" id="d-rating">—</span>
+            <span id="d-trips">— trips</span>
+          </div>
+          <div class="driver-meta" style="margin-top:6px">
+            <span class="badge badge-ok" id="d-dci">DCI vetted</span>
+            <span class="badge badge-info" id="d-cert">Manual & auto</span>
+          </div>
+        </div>
+      </div>
+      <dl class="mt">
+        <div class="kv"><dt>Arrives in</dt><dd id="d-eta">—</dd></div>
+        <div class="kv"><dt>Distance away</dt><dd id="d-dist">—</dd></div>
+        <div class="kv"><dt>NTSA licence</dt><dd id="d-ntsa">—</dd></div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Safety contact</p>
+      <p class="card-sub" style="margin-bottom:14px">
+        We SMS this person the driver's name and a live tracking link the moment your trip starts.
+      </p>
+      <div class="field-row">
+        <div class="field" style="margin:0">
+          <label for="ec-name">Their name</label>
+          <input id="ec-name" type="text" placeholder="Wanjiku" autocomplete="off" value="Wanjiku">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="ec-phone">Their phone</label>
+          <input id="ec-phone" type="tel" inputmode="tel" placeholder="0712 345 678"
+                 autocomplete="off" value="0712345678">
+        </div>
+      </div>
+      <div class="field mt">
+        <label for="me-name">Your name</label>
+        <input id="me-name" type="text" placeholder="Achieng" autocomplete="given-name" value="Achieng">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="me-phone">Your M-Pesa number</label>
+        <input id="me-phone" type="tel" inputmode="tel" placeholder="0700 000 001"
+               autocomplete="tel" value="0700000001">
+      </div>
+    </div>
+
+    <div class="btn-stack">
+      <button class="btn btn-accent" id="btn-start" type="button">Confirm & start trip</button>
+      <button class="btn btn-ghost" id="btn-back-plan" type="button">Change details</button>
+    </div>
+  </section>
+
+  <!-- ================================================== 3. LIVE TRIP -->
+  <section id="screen-trip" class="screen hidden">
+    <div class="card">
+      <div class="trip-head">
+        <div>
+          <p class="section-label" style="margin-bottom:2px">Trip</p>
+          <div class="trip-id" id="t-id">—</div>
+        </div>
+        <span class="pill-status" id="t-status">—</span>
+      </div>
+      <div class="driver mt">
+        <div class="avatar avatar-fallback" id="t-avatar">?</div>
+        <div style="flex:1;min-width:0">
+          <div class="driver-name" id="t-driver">—</div>
+          <div class="driver-meta"><span id="t-eta">—</span></div>
+        </div>
+      </div>
+      <dl class="mt">
+        <div class="kv"><dt>Pickup</dt><dd id="t-pickup">—</dd></div>
+        <div class="kv"><dt>Destination</dt><dd id="t-dropoff">—</dd></div>
+        <div class="kv"><dt>Safety SMS</dt><dd id="t-sms">—</dd></div>
+      </dl>
+    </div>
+
+    <div class="card" id="track-link-card">
+      <p class="section-label">Share with family</p>
+      <p class="card-sub" style="margin-bottom:10px">
+        Anyone with this link can follow your trip status. No coordinates, no phone numbers.
+      </p>
+      <div class="spread" style="gap:8px">
+        <span class="mono" id="t-track-url" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+        <button class="btn btn-ghost btn-sm" id="btn-copy" type="button" style="flex:0 0 auto">Copy</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Trip log</p>
+      <ul class="timeline" id="t-events"></ul>
+    </div>
+
+    <div class="btn-stack">
+      <button class="btn btn-primary" id="btn-arrived" type="button">Driver has arrived — start ride</button>
+      <button class="btn btn-accent" id="btn-finish" type="button">End trip & pay</button>
+    </div>
+  </section>
+
+  <!-- ================================================== 4. PAY -->
+  <section id="screen-pay" class="screen hidden">
+    <div class="card">
+      <p class="section-label">Trip complete</p>
+      <div class="money"><span id="p-fare">—</span> <small>KES</small></div>
+      <dl class="mt">
+        <div class="kv"><dt>Trip</dt><dd id="p-trip" class="mono">—</dd></div>
+        <div class="kv"><dt>Duration</dt><dd id="p-duration">—</dd></div>
+        <div class="kv"><dt>Payment</dt><dd id="p-status">—</dd></div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Pay now</p>
+      <div class="btn-stack">
+        <button class="btn btn-primary" id="btn-mpesa" type="button">
+          Pay <span id="p-fare-btn">—</span> with M-Pesa
+        </button>
+        <button class="btn btn-ghost" id="btn-cash" type="button">I'll pay the driver cash</button>
+      </div>
+      <p class="field-hint mt" id="p-note">
+        A payment prompt appears on your phone. Enter your M-Pesa PIN to release the fare.
+      </p>
+    </div>
+
+    <div class="card hidden" id="p-receipt-card">
+      <p class="section-label">Receipt</p>
+      <dl>
+        <div class="kv"><dt>Status</dt><dd id="p-r-status">—</dd></div>
+        <div class="kv"><dt>Reference</dt><dd id="p-receipt" class="mono">—</dd></div>
+      </dl>
+    </div>
+
+    <button class="btn btn-accent hidden" id="btn-to-rate" type="button">Rate your driver</button>
+  </section>
+
+  <!-- ================================================== 5. RATE -->
+  <section id="screen-rate" class="screen hidden">
+    <div class="card">
+      <h2 class="card-title">How was the drive?</h2>
+      <p class="card-sub" id="r-driver-sub">Your feedback updates the driver's public rating.</p>
+
+      <div class="star-row" id="star-row" role="radiogroup" aria-label="Rating out of five">
+        <button class="star" type="button" data-v="1" role="radio" aria-checked="false" aria-label="1 star">★</button>
+        <button class="star" type="button" data-v="2" role="radio" aria-checked="false" aria-label="2 stars">★</button>
+        <button class="star" type="button" data-v="3" role="radio" aria-checked="false" aria-label="3 stars">★</button>
+        <button class="star" type="button" data-v="4" role="radio" aria-checked="false" aria-label="4 stars">★</button>
+        <button class="star" type="button" data-v="5" role="radio" aria-checked="false" aria-label="5 stars">★</button>
+      </div>
+
+      <p class="section-label">What stood out?</p>
+      <div class="chips" id="tag-row">
+        <button class="chip" type="button" data-tag="PUNCTUAL">Punctual</button>
+        <button class="chip" type="button" data-tag="SAFE_DRIVING">Safe driving</button>
+        <button class="chip" type="button" data-tag="POLITE">Polite</button>
+        <button class="chip" type="button" data-tag="CLEAN_CAR">Treated my car well</button>
+        <button class="chip" type="button" data-tag="GOOD_ROUTE">Good route</button>
+        <button class="chip" type="button" data-tag="LATE">Late</button>
+        <button class="chip" type="button" data-tag="RECKLESS">Rough driving</button>
+      </div>
+
+      <div class="field mt" style="margin-bottom:0">
+        <label for="r-comment">Anything else? <span class="muted" style="font-weight:400">(optional)</span></label>
+        <textarea id="r-comment" maxlength="1000" placeholder="Tell us what happened"></textarea>
+      </div>
+    </div>
+
+    <div class="btn-stack">
+      <button class="btn btn-primary" id="btn-submit-rating" type="button" disabled>
+        Submit rating
+      </button>
+      <button class="btn btn-ghost" id="btn-skip-rating" type="button">Skip</button>
+    </div>
+  </section>
+
+  <!-- ================================================== 6. DONE -->
+  <section id="screen-done" class="screen hidden">
+    <div class="card center">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+           style="margin:8px auto 14px;display:block">
+        <circle cx="12" cy="12" r="10.5" stroke="#12855b" stroke-width="1.7"/>
+        <path d="m7.5 12.4 3.1 3.1 6-6.4" stroke="#12855b" stroke-width="2.1"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h2 class="card-title">You're all sorted</h2>
+      <p class="card-sub" id="done-msg">Thanks for driving safely with iFinder.</p>
+      <div class="btn-stack mt">
+        <button class="btn btn-primary" id="btn-new-trip" type="button">Book another trip</button>
+      </div>
+    </div>
+    <div class="card">
+      <p class="section-label">Trip summary</p>
+      <dl id="done-summary"></dl>
+    </div>
+  </section>
+</main>
+
+<!-- ================================================== SOS DOCK -->
+<div class="sos-dock hidden" id="sos-dock">
+  <button class="btn btn-danger sos-btn" id="btn-sos" type="button">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3.2 2.8 20h18.4L12 3.2Z" stroke="currentColor" stroke-width="1.8"
+            stroke-linejoin="round"/>
+      <path d="M12 9.6v4.2M12 16.6v.9" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round"/>
+    </svg>
+    Emergency SOS
+  </button>
+</div>
+
+<!-- ================================================== SOS SHEET -->
+<div class="sheet" id="sos-sheet" role="dialog" aria-modal="true" aria-labelledby="sos-sheet-title">
+  <div class="sheet-panel">
+    <div class="sheet-grab"></div>
+    <h2 class="card-title" id="sos-sheet-title" style="color:#8f1329">Send emergency alert?</h2>
+    <p class="card-sub">
+      This immediately SMSes your safety contact and our ops desk with your driver's details,
+      and queues an automated voice call to our control room.
+    </p>
+    <div class="notice notice-bad">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3.2 2.8 20h18.4L12 3.2Z" stroke="currentColor" stroke-width="1.8"
+              stroke-linejoin="round"/>
+        <path d="M12 9.6v4.2M12 16.6v.9" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round"/>
+      </svg>
+      <span>Only use this if you feel unsafe. It cannot be undone from this screen.</span>
+    </div>
+    <div class="btn-stack">
+      <button class="btn btn-danger" id="btn-sos-confirm" type="button">Yes — send SOS now</button>
+      <button class="btn btn-ghost" id="btn-sos-cancel" type="button">No, I'm fine</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================== SOS RESULT -->
+<div class="sheet" id="sos-done-sheet" role="dialog" aria-modal="true" aria-labelledby="sos-done-title">
+  <div class="sheet-panel">
+    <div class="sheet-grab"></div>
+    <h2 class="card-title" id="sos-done-title">Help is on the way</h2>
+    <p class="card-sub" id="sos-done-sub">Our team has been alerted.</p>
+    <dl id="sos-done-details"></dl>
+    <div class="btn-stack mt">
+      <a class="btn btn-primary" id="sos-call-ops" href="tel:+254700000999">Call the ops desk</a>
+      <button class="btn btn-ghost" id="btn-sos-close" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="toast-sheet" role="status" aria-live="polite">
+  <div class="sheet-panel" style="padding-bottom:32px">
+    <div class="sheet-grab"></div>
+    <div class="spread">
+      <div style="flex:1">
+        <div class="driver-name" id="toast-title">Working…</div>
+        <p class="card-sub" id="toast-msg" style="margin:4px 0 0">—</p>
+      </div>
+      <div class="spinner hidden" id="toast-spin"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

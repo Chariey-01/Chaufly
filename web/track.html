@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d2e">
+<meta name="robots" content="noindex, nofollow">
+<title>iFinder — trip status</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="logo">
+      <svg class="logo-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="10.5" stroke="#f2a50c" stroke-width="2"/>
+        <path d="M7 16.5 10 9l2.5 5 2-3 2.5 5.5" stroke="#fff" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      iFinder
+    </span>
+    <span class="topbar-meta" id="refreshed">Live</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="loading" class="card center mt">
+    <div class="spinner" style="margin:6px auto 14px;border-top-color:#0b3d2e;border-color:#dfe5ec;border-top-width:3px"></div>
+    <p class="muted" style="margin:0">Checking this trip…</p>
+  </div>
+
+  <div id="missing" class="card hidden mt">
+    <h1 class="card-title">Trip not found</h1>
+    <p class="card-sub">
+      This tracking link doesn't match a trip we know about. It may have expired,
+      or the link was copied incompletely.
+    </p>
+    <div class="notice notice-warn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3.2 2.8 20h18.4L12 3.2Z" stroke="currentColor" stroke-width="1.8"
+              stroke-linejoin="round"/>
+        <path d="M12 9.6v4.2M12 16.6v.9" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round"/>
+      </svg>
+      <span>If you were expecting a trip here, call the person who sent you this link.</span>
+    </div>
+  </div>
+
+  <div id="error" class="card hidden mt">
+    <h1 class="card-title">Can't reach iFinder</h1>
+    <p class="card-sub" id="error-msg">The connection dropped.</p>
+    <button class="btn btn-primary" id="btn-retry" type="button">Try again</button>
+  </div>
+
+  <div id="content" class="hidden">
+    <div class="card">
+      <div class="trip-head">
+        <div>
+          <p class="section-label" style="margin-bottom:2px">Trip status</p>
+          <div class="trip-id" id="t-id">—</div>
+        </div>
+        <span class="pill-status" id="t-status">—</span>
+      </div>
+
+      <p class="mt mb" id="headline" style="font-size:17px;font-weight:650;margin-bottom:4px">—</p>
+      <p class="muted" style="font-size:14px;margin-top:0" id="subline">—</p>
+
+      <div class="notice notice-bad hidden" id="emergency-banner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.2 2.8 20h18.4L12 3.2Z" stroke="currentColor" stroke-width="1.8"
+                stroke-linejoin="round"/>
+          <path d="M12 9.6v4.2M12 16.6v.9" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round"/>
+        </svg>
+        <span><strong>Emergency alert active.</strong> An SOS was raised on this trip and the
+          iFinder control room has been notified.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Trip details</p>
+      <dl>
+        <div class="kv"><dt>Passenger</dt><dd id="k-passenger">—</dd></div>
+        <div class="kv"><dt>Driver</dt><dd id="k-driver">—</dd></div>
+        <div class="kv"><dt>Vehicle</dt><dd id="k-vehicle">—</dd></div>
+        <div class="kv"><dt>Heading to</dt><dd id="k-destination">—</dd></div>
+        <div class="kv"><dt>Started</dt><dd id="k-started">—</dd></div>
+        <div class="kv"><dt>Arrived</dt><dd id="k-arrived">—</dd></div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Progress</p>
+      <ul class="timeline" id="timeline"></ul>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Concerned?</p>
+      <p class="card-sub">
+        Call the passenger first. If you can't reach them, contact the iFinder ops desk
+        and quote the trip number above.
+      </p>
+      <a class="btn btn-ghost" href="tel:+254700000999">Call the ops desk</a>
+    </div>
+
+    <p class="muted center" style="font-size:12px;padding:4px 0 24px">
+      For privacy we show the passenger's first name, the driver's first name, a masked plate,
+      and no live coordinates. This link is read-only.
+    </p>
+  </div>
+</main>
+
+<script src="/static/track.js"></script>
+</body>
+</html>
