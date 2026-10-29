@@ -1,7 +1,7 @@
 import math
 from datetime import datetime, timezone
 
-from flask import Blueprint, current_app, jsonify, request, send_from_directory
+from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy import select
 
 from .extensions import db
@@ -16,7 +16,7 @@ web = Blueprint("web", __name__)
 
 @web.get("/")
 def index():
-    return send_from_directory("static", "index.html")
+    return current_app.send_static_file("index.html")
 
 
 def error(code, message, status, fields=None):
