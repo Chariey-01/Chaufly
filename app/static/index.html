@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chaufly — Dial a Driver</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #172033; background: #f4f7fb; }
+    main { max-width: 680px; margin: auto; padding: 24px 16px 48px; }
+    h1 { margin-bottom: 4px; } .card { background: white; border-radius: 12px; padding: 20px; margin-top: 16px; box-shadow: 0 2px 12px #17203318; }
+    label { display:block; margin-top: 12px; font-weight: 600; } input, select, button { width:100%; box-sizing:border-box; padding:12px; margin-top:5px; border-radius:8px; border:1px solid #b7c1d1; font:inherit; }
+    button { background:#155eef; color:white; border:0; font-weight:700; cursor:pointer; margin-top:16px; } button.sos { background:#c01048; }
+    #result { white-space:pre-wrap; word-break:break-word; } .warning { color:#8b4d00; } small { color:#566173; }
+  </style>
+</head>
+<body><main>
+  <h1>Chaufly</h1><p>You own the ride. We bring the driver.</p>
+  <div class="card"><strong>Transparent demo status</strong><p class="warning">Quotes require a real routing provider. Location is used only after your browser permission; no coordinates are invented.</p><small id="health">Checking API…</small></div>
+  <form id="match" class="card">
+    <h2>Find a compatible driver</h2>
+    <label>Vehicle transmission <select name="transmission"><option>AUTOMATIC</option><option>MANUAL</option></select></label>
+    <label>Search radius in km <input name="radius_km" type="number" min="1" value="15" required></label>
+    <button type="submit">Use my location and find drivers</button>
+    <small>Only user-permitted browser location is sent. Driver location labels identify their source.</small>
+  </form>
+  <div id="result" class="card" hidden></div>
+  <div class="card">
+    <h2>Trip status and SOS</h2>
+    <label>Trip ID <input id="trip-id" placeholder="Paste a trip ID"></label>
+    <button id="status" type="button">Check trip status</button>
+    <button id="sos" class="sos" type="button">SOS — request assistance</button>
+    <small>SOS records an incident and attempts configured alerts. It does not guarantee emergency response.</small>
+  </div>
+</main>
+<script>
+const result = document.querySelector('#result');
+function show(value) { result.hidden = false; result.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); }
+async function api(url, options) { const response = await fetch(url, options); const data = await response.json(); if (!response.ok) throw data; return data; }
+fetch('/api/health').then(r => r.json()).then(() => document.querySelector('#health').textContent = 'API available.').catch(() => document.querySelector('#health').textContent = 'API unavailable.');
+document.querySelector('#match').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!navigator.geolocation) return show('This browser cannot provide location. Select a pickup point in a future map-enabled flow.');
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const form = new FormData(event.target);
+    try { show(await api('/api/drivers/match', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({transmission:form.get('transmission'), radius_km:form.get('radius_km'), pickup_latitude:pos.coords.latitude, pickup_longitude:pos.coords.longitude})})); }
+    catch (e) { show(e); }
+  }, () => show('Location permission was not granted. No coordinate was sent.'));
+});
+document.querySelector('#status').onclick = async () => { try { show(await api('/api/trips/' + encodeURIComponent(document.querySelector('#trip-id').value))); } catch (e) { show(e); } };
+document.querySelector('#sos').onclick = async () => {
+  const id = document.querySelector('#trip-id').value;
+  if (!id || !confirm('Send an SOS alert attempt for this trip?')) return;
+  const reason = prompt('Brief reason for SOS:'); if (!reason) return;
+  try { show(await api('/api/trips/' + encodeURIComponent(id) + '/sos', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({trigger_reason:reason})})); } catch (e) { show(e); }
+};
+</script></body></html>
