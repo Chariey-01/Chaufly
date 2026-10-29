@@ -29,6 +29,14 @@ Run tests:
 pytest -q
 ```
 
+## Deployment
+
+The Flask app serves its frontend and API from one origin, so no browser CORS policy is required or enabled. It includes a Dockerfile and `railway.toml` for Railway-compatible deployment; Gunicorn listens on the platform-provided `PORT` and Railway checks `GET /api/health`.
+
+Before deployment, attach a persistent PostgreSQL database and set its connection string as `DATABASE_URL` (use `postgresql://...` rather than a local SQLite file). The current MVP calls `db.create_all()` at startup; it is suitable for initial schema creation only. Introduce and run reviewed migrations before production schema changes—do not rely on `create_all()` for schema evolution.
+
+Set all provider and fare variables listed below as service variables, not in source or frontend code. Until credentials are supplied, the API returns its documented unavailable states. Run the deployment from an authenticated Railway account with `railway up`; no deployment has been created by this repository yet.
+
 ## Configuration
 
 Copy `.env.example` and provide values through your environment (the application does not load `.env` itself):
